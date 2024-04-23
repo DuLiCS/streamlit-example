@@ -38,3 +38,8 @@ st.altair_chart(alt.Chart(df, height=700, width=700)
         color=alt.Color("idx", legend=None, scale=alt.Scale()),
         size=alt.Size("rand", legend=None, scale=alt.Scale(range=[1, 150])),
     ))
+
+st.balloons()
+st.progress(10)
+with st.spinner('Wait for it...'):
+    time.sleep(10)
