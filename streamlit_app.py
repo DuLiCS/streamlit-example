@@ -1,214 +1,89 @@
-import altair as alt
-import numpy as np
-import pandas as pd
-import streamlit as st
-import time
-
-"""
-# Welcome to Streamlit!
-
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:.
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
-
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
-
-num_points = st.slider("Number of points in spiral", 1, 11000, 1100)
-num_turns = st.slider("Number of turns in spiral", 1, 300, 31)
-
-indices = np.linspace(0, 1, num_points)
-theta = 2 * np.pi * num_turns * indices
-radius = indices
-
-x = radius * np.cos(theta)
-y = radius * np.sin(theta)
-
-df = pd.DataFrame({
-    "x": x,
-    "y": y,
-    "idx": indices,
-    "rand": np.random.randn(num_points),
-})
-
-st.altair_chart(alt.Chart(df, height=700, width=700)
-    .mark_point(filled=True)
-    .encode(
-        x=alt.X("x", axis=None),
-        y=alt.Y("y", axis=None),
-        color=alt.Color("idx", legend=None, scale=alt.Scale()),
-        size=alt.Size("rand", legend=None, scale=alt.Scale(range=[1, 150])),
-    ))
-
 ###############
 # Authored by Weisheng Jiang
-# Book 3  |  From Basic Arithmetic to Machine Learning
+# Book 4  |  From Basic Arithmetic to Machine Learning
 # Published and copyrighted by Tsinghua University Press
 # Beijing, China, 2022
 ###############
 
 
-import math
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import cm
 import streamlit as st
-from sympy import symbols, lambdify
-import plotly.graph_objects as go
+import numpy as np
+import plotly.express as px
+import pandas as pd
 
 
-# %%
+def bmatrix(a):
+    """Returns a LaTeX bmatrix
 
-def mesh_square(x1_0, x2_0, r, num):
-    # generate mesh
+    :a: numpy array
+    :returns: LaTeX bmatrix as a string
+    """
+    if len(a.shape) > 2:
+        raise ValueError('bmatrix can at most display two dimensions')
+    lines = str(a).replace('[', '').replace(']', '').splitlines()
+    rv = [r'\begin{bmatrix}']
+    rv += ['  ' + ' & '.join(l.split()) + r'\\' for l in lines]
+    rv += [r'\end{bmatrix}']
+    return '\n'.join(rv)
 
-    rr = np.linspace(-r, r, num)
-    xx1, xx2 = np.meshgrid(rr, rr);
-
-    xx1 = xx1 + x1_0;
-    xx2 = xx2 + x2_0;
-
-    return xx1, xx2, rr
-
-
-def plot_surf(xx1, xx2, ff):
-    norm_plt = plt.Normalize(ff.min(), ff.max())
-    colors = cm.coolwarm(norm_plt(ff))
-
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
-    surf = ax.plot_surface(xx1, xx2, ff,
-                           facecolors=colors, shade=False)
-    surf.set_facecolor((0, 0, 0, 0))
-    # z_lim = [ff.min(),ff.max()]
-    # ax.plot3D([0,0],[0,0],z_lim,'k')
-    plt.show()
-
-    plt.tight_layout()
-    ax.set_xlabel('$\it{x_1}$')
-    ax.set_ylabel('$\it{x_2}$')
-    ax.set_zlabel('$\it{f}$($\it{x_1}$,$\it{x_2}$)')
-
-    ax.xaxis._axinfo["grid"].update({"linewidth": 0.25, "linestyle": ":"})
-    ax.yaxis._axinfo["grid"].update({"linewidth": 0.25, "linestyle": ":"})
-    ax.zaxis._axinfo["grid"].update({"linewidth": 0.25, "linestyle": ":"})
-
-    plt.rcParams["font.family"] = "Times New Roman"
-    plt.rcParams["font.size"] = "10"
-
-    return fig
-
-
-def plot_contourf(xx1, xx2, ff):
-    fig, ax = plt.subplots()
-
-    cntr2 = ax.contourf(xx1, xx2, ff, levels=15, cmap="RdBu_r")
-
-    fig.colorbar(cntr2, ax=ax)
-    plt.show()
-
-    ax.set_xlabel('$\it{x_1}$')
-    ax.set_ylabel('$\it{x_2}$')
-
-    ax.grid(linestyle='--', linewidth=0.25, color=[0.5, 0.5, 0.5])
-
-    return fig
-
-
-# %%
 
 with st.sidebar:
-    st.latex(r'f(x_1,x_2) = ax_1^2 + bx_1x_2 + cx_2^2 + dx_1 + ex_2 + f')
+    st.latex(r'''
+             A = \begin{bmatrix}
+    a & b\\
+    c & d
+    \end{bmatrix}''')
 
-    a = st.slider('a',
-                  min_value=-2.0,
-                  max_value=2.0,
-                  step=0.1)
-
-    b = st.slider('b',
-                  min_value=-2.0,
-                  max_value=2.0,
-                  step=0.1)
-
-    c = st.slider('c',
-                  min_value=-2.0,
-                  max_value=2.0,
-                  step=0.1)
-
-    d = st.slider('d',
-                  min_value=-2.0,
-                  max_value=2.0,
-                  step=0.1)
-
-    e = st.slider('e',
-                  min_value=-2.0,
-                  max_value=2.0,
-                  step=0.1)
-
-    f = st.slider('f',
-                  min_value=-2.0,
-                  max_value=2.0,
-                  step=0.1)
-
-# %% initialization
-
-x1, x2 = symbols('x1 x2')
-
-x1_0 = 0;  # center of the mesh
-x2_0 = 0;  # center of the mesh
-r = 2;  # radius of the mesh
-num = 30;  # number of mesh grids
-xx1, xx2, x1_array = mesh_square(x1_0, x2_0, r, num);  # generate mesh
-
-x2_array = x1_array
-
-# %% Visualizations using matplotlib
-
-f_sym = a * x1 ** 2 + b * x1 * x2 + c * x2 ** 2 + d * x1 + e * x2 + f
-
-f_fcn = lambdify([x1, x2], f_sym)
-
-ff = f_fcn(xx1, xx2);
-
-fig_1 = plot_surf(xx1, xx2, ff)
-
-# st.pyplot(fig_1)
-
-fig_2 = plot_contourf(xx1, xx2, ff)
-
-# st.pyplot(fig_2)
-
-
-# %% Visualizations using plotly
-
-
-fig_surface = go.Figure(go.Surface(
-    x=x1_array,
-    y=x2_array,
-    z=ff,
-    showscale=False,
-    colorscale='RdYlBu_r'))
-fig_surface.update_layout(
-    autosize=True,
-    width=800,
-    height=600)
-
-st.plotly_chart(fig_surface)
+    a = st.slider('a', -2.0, 2.0, step=0.1, value=1.0)
+    b = st.slider('b', -2.0, 2.0, step=0.1, value=0.0)
+    c = st.slider('c', -2.0, 2.0, step=0.1, value=0.0)
+    d = st.slider('d', -2.0, 2.0, step=0.1, value=1.0)
 
 # %%
 
-fig_contour = go.Figure(data=
-go.Contour(
-    z=ff,
-    x=x1_array,  # horizontal axis
-    y=x2_array,  # vertical axis
-    colorscale='RdYlBu_r'
-))
-fig_contour.update_layout(
-    autosize=True,
-    width=600,
-    height=600)
+x1_ = np.linspace(-1, 1, 11)
+x2_ = np.linspace(-1, 1, 11)
 
-st.plotly_chart(fig_contour)
+xx1, xx2 = np.meshgrid(x1_, x2_)
+
+X = np.column_stack((xx1.flatten(), xx2.flatten()))
+
+# st.write(X)
+A = np.array([[a, b],
+              [c, d]])
+
+X = X @ A
+
+# st.write(len(X))
+# %%
+color_array = np.linspace(0, 1, len(X))
+# st.write(color_array)
+X = np.column_stack((X, color_array))
+df = pd.DataFrame(X, columns=['z1', 'z2', 'color'])
+
+# %% Scatter
+
+st.latex('A = ' + bmatrix(A))
+
+fig = px.scatter(df,
+                 x="z1",
+                 y="z2",
+                 color='color',
+                 color_continuous_scale='rainbow')
+
+fig.update_layout(
+    autosize=False,
+    width=500,
+    height=500)
+
+fig.add_hline(y=0, line_color='black')
+fig.add_vline(x=0, line_color='black')
+
+fig.update_xaxes(range=[-3, 3])
+fig.update_yaxes(range=[-3, 3])
+fig.update_coloraxes(showscale=False)
+
+st.plotly_chart(fig)
+
 
 
